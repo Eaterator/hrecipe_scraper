@@ -77,7 +77,7 @@ class AsyncScraper:
         :return:
         """
         if not self._url_queue.empty():
-            url = self._url_queue.pop()
+            url = self._url_queue.get()
             async with self.client.get(url) as response:
                 if response.status == 200:
                     logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
@@ -140,7 +140,7 @@ class AsyncScraper:
     def _generate_new_urls_from_id(self):
         for i in range(self.current_id, URL_BATCH_SIZE_FROM_IDS, 1):
             self.current_id += 1
-            self._url_queue.push(self.url_id_format.format(i))
+            self._url_queue.put(self.url_id_format.format(i))
 
     async def _write_content(self, data):
         """
