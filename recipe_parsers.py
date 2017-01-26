@@ -48,17 +48,18 @@ class HRecipeParser(Parser):
 
     @staticmethod
     def _find_ingredients(soup):
-        ingredient_tags = soup.find_all(attr={"itemprop": "ingredients"})\
-            .extend(soup.find_all(attr={"itemprop": "ingredient"}))\
-            .extend(soup.find_all('div', {'class': 'ingredients'}))
-
+        ingredient_tags = []
+        ingredient_tags.extend(soup.select('[itemprop="ingredients"]'))\
+        ingredient_tags.extend(soup.select('[itemprop="ingredient"]'))
         return [tag.text for tag in ingredient_tags]
 
     @staticmethod
     def _find_instructions(soup):
         # TODO review other itemprop tags across websites
-        instruction_tags = soup.find_all(attr={"itemprop": "recipeDirections"})
-        return [tag.text for tag in instruction_tags]
+        instruction_tags = []
+        instruction_tags.extend(soup.select('[itemprop="recipeDirections"]'))
+        instruction_tags.extend(soup.select('[itemprop="recipeInstructions"]'))
+        return [tag.text if tag.text else tag for tag in instruction_tags]
 
     @staticmethod
     def _find_preparation_time(soup):

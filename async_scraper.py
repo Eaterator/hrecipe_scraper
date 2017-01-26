@@ -14,10 +14,10 @@ from .exceptions import InvalidResponse, AsyncScraperConfigError, FileNumberExce
 ###############################################
 #             Id Generator Settings           #
 MAXIMUM_SEQUENTIAL_404_ERRORS = 10
-URL_BATCH_SIZE_FROM_IDS = 100000
+URL_BATCH_SIZE_FROM_IDS = 1000
 
 ###############################################
-#        Data writing thread executor         #
+#        File writing thread executor         #
 EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 
@@ -61,14 +61,14 @@ class AsyncScraper:
             if resp:
                 data = self.parse_content(resp)
                 await self._write_content(json.dumps(data))
-                await aio_sleep(DOMAIN_REQUEST_DELAY - (default_timer() - start))  # 5s minus time taken to this point
             else:
                 if self.consecutive_404_errors > MAXIMUM_SEQUENTIAL_404_ERRORS:
                     raise StopAsyncIteration
                 else:
                     self._generate_new_urls_from_id()
         except InvalidResponse:
-            await aio_sleep(DOMAIN_REQUEST_DELAY - (default_timer() - start))  # delay 5s minus time taken to this point
+            pass
+        await aio_sleep(DOMAIN_REQUEST_DELAY - (default_timer() - start))  # delay 5s minus time taken to this point
         return
 
     async def make_request(self):
