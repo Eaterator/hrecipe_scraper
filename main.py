@@ -7,7 +7,7 @@ from .async_scraper import AsyncScraper, DOMAIN_REQUEST_DELAY
 SCRAPER_CONFIGS = {
     'allrecipes': {
         'base_path': ['allrecipes.com/recipe'],
-        'parser': HRecipeParser.get_parser(),  # TODO needs speciality parser
+        'parser': HRecipeParser.get_parser(),
         'url_id_format': 'https://allrecipes.com/recipe/{0}',
         'start_id': 6663,
     },

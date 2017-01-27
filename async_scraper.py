@@ -100,7 +100,7 @@ class AsyncScraper:
         :param response: the raw HTTP response
         :return: HTTP response parsed by the given parser (ready to be written to file in JSON format)
         """
-        soup = BeautifulSoup(response)
+        soup = BeautifulSoup(response, 'lxml')
         # map(self.url_queue.put, self.find_links(soup, self.base_path))
         return json.dumps(self.parser(soup))
 

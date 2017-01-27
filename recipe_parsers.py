@@ -1,10 +1,12 @@
 from abc import ABCMeta, abstractmethod
+from itertools import chain
 
 
 class Parser:
     """
-    General class to support multiple parser times. Initial support for HRecipe, but secondary
-    support API based scraping methods available.
+    General class to support multiple parser types/classes. Initial support for HRecipe, but secondary
+    support API based scraping methods may be useful as well that can implement logic in abstract
+    parser function, and return this function without instantiation explicit instantiation necessary.
     """
     __metaclass__ = ABCMeta
 
@@ -21,8 +23,8 @@ class Parser:
 
 class HRecipeParser(Parser):
     """
-    Parser to support the open format HRecipe format. See Link below for more info.
-    **** PUT LINK HERE ****
+    Parser to support the open format HRecipe format. See README.md for more info. Each line in the format
+    soup.select(...) represents the tag in which the data occurs on a different site.
     """
 
     def parse(self, soup):
@@ -31,48 +33,83 @@ class HRecipeParser(Parser):
         :param soup: the raw html data
         :return: structures json of the parsed data in the data collection format
         """
-        ingredients = self._find_ingredients(soup)
-        instructions = self._find_instructions(soup)
-        preparation_time = self._find_preparation_time(soup)
-        cook_time = self._find_cook_time(soup)
-        rating = self._find_rating(soup)
         return {
-            'ingredients': ingredients,
-            'instructions': instructions,
+            'title': self._find_title(soup),
+            'ingredients': self._find_ingredients(soup),
+            'instructions': self._find_instructions(soup),
             'time': {
-                'preparation': preparation_time,
-                'cook': cook_time,
+                'prepTime': self._find_preparation_time(soup),
+                'cookTime': self._find_cook_time(soup),
             },
-            'rating': rating,
+            'yield': self._find_yield(soup),
+            'rating': self._find_rating(soup),
         }
+
+    @staticmethod
+    def _find_title(soup):
+        # TODO make more general for meta only tags if necessary
+        title = []
+        title.extend(chain(
+            soup.select('[itemprop="name"]'),
+
+        ))
+        return title[0].text if title[0].text else title[0]['content']
 
     @staticmethod
     def _find_ingredients(soup):
         ingredient_tags = []
-        ingredient_tags.extend(soup.select('[itemprop="ingredients"]'))\
-        ingredient_tags.extend(soup.select('[itemprop="ingredient"]'))
+        ingredient_tags.extend(chain(
+            soup.select('[itemprop="ingredients"]'),  # allrecipes
+            soup.select('[itemprop="ingredient"]')  # epicurious, foodnetwork
+        ))
         return [tag.text for tag in ingredient_tags]
 
     @staticmethod
     def _find_instructions(soup):
-        # TODO review other itemprop tags across websites
         instruction_tags = []
-        instruction_tags.extend(soup.select('[itemprop="recipeDirections"]'))
-        instruction_tags.extend(soup.select('[itemprop="recipeInstructions"]'))
+        instruction_tags.extend(chain(
+            soup.select('[itemprop="recipeDirections"]'),  # epicurious, foodnetwork
+            soup.select('[itemprop="recipeInstructions"]'),  # allrecipes
+        ))
         return [tag.text if tag.text else tag for tag in instruction_tags]
 
-    @staticmethod
-    def _find_preparation_time(soup):
-        prepration_tags = soup.find_all(attr={"itemprop": "prepTime"})
-        # TODO logic to look through different attributes that store hrecipe time formats!
-        return prepration_tags
+    def _find_preparation_time(self, soup):
+        preparation_tags = []
+        preparation_tags.extend(chain(
+            soup.select('[itemprop="prepTime"]')
+        ))
+        return [tag.text if tag.text else self._find_prep_times(tag) for tag in preparation_tags]
+
+    def _find_cook_time(self, soup):
+        cook_tags = []
+        cook_tags.extend(chain(
+            soup.select('[itemprop="cookTime"]')
+        ))
+        return [tag.text if tag.text else self._find_prep_times(tag) for tag in cook_tags]
 
     @staticmethod
-    def _find_cook_time(soup):
-        # TODO logic to look through different attributes that store hrecipe time formats!
-        return soup.find_all(attr={"itemprop": "cookTime"})
+    def _find_prep_times(tag):
+        """If not text is in the cookTime/prepTime tags, it tries to find appropriate HTML attribute that
+        locates this information"""
+        #                 allrecipes, foodnetwork
+        attribute_tags = ['datetime', 'content']
+        for attr in attribute_tags:
+            try:
+                return tag[attr]
+            except KeyError:
+                pass
+        return
+
+    @staticmethod
+    def _find_yield(soup):
+        # TODO make more general for meta only tags if necessary
+        _yield = []
+        _yield.extend(chain(
+            soup.select('[itemprop="recipeYield"]'),
+        ))
+        return _yield[0].text if _yield[0].text else _yield[0]['content']
 
     @staticmethod
     def _find_rating(soup):
-        # TODO implement logic to find ratings
+        # TODO implement logic to find ratings? Not super necessary atm
         return None

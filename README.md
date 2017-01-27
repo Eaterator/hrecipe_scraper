@@ -6,15 +6,17 @@ be found here:
 
     http://microformats.org/wiki/hrecipe
 
-Some sites that support the micro format can be found here (lifted from http://microformats.org/wiki/hrecipe):
-
+Some sites that support the micro format can be found here (lifted from http://microformats.org/wiki/hrecipe). Note
+that starred entries have been incorporated into the HRecipeParser tests. Double starred have been included in the
+main.py  `SCRAPER_CONFIGS` to be able to scrape by manipulating ID in URL field
+    ** http://allrecipes.com/recipe/{id>=6663}
     http://www.eat-vegan.rocks/
     http://funcook.com/
     http://www.therecipedepository.com
     http://sabores.sapo.pt/
-    http://www.epicurious.com/
+    ** http://www.epicurious.com/recipes/food/views/{id>=412}
     http://www.williams-sonoma.com/
-    http://foodnetwork.com/
+    ** http://foodnetwork.com/recipes/{id >= 1}
     http://www.plantoeat.com/recipe_book
     http://www.essen-und-trinken.de
     http://itsripe.com/recipes/
