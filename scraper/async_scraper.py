@@ -1,11 +1,12 @@
 from . import MAX_FILE_SIZE, MAX_DAILY_FILES, DATA_PATH, logger
 import os
 import json
-from asyncio import sleep as aio_sleep
-from queue import Queue
 from timeit import default_timer
+from asyncio import sleep as aio_sleep, ensure_future
+from aiohttp import ClientSession, TCPConnector
+from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
-from datetime import date
+from datetime import datetime
 from bs4 import BeautifulSoup
 from .recipe_parsers import HRecipeParser
 from .exceptions import InvalidResponse, AsyncScraperConfigError, FileNumberException
@@ -14,7 +15,7 @@ from .exceptions import InvalidResponse, AsyncScraperConfigError, FileNumberExce
 ###############################################
 #             Id Generator Settings           #
 MAXIMUM_SEQUENTIAL_404_ERRORS = 10
-URL_BATCH_SIZE_FROM_IDS = 1000
+URL_BATCH_SIZE_FROM_IDS = 3
 
 ###############################################
 #        File writing thread executor         #
@@ -33,21 +34,21 @@ class AsyncScraper:
     to have a single class for domain that can be used to generate asynchronous tasks to be
     run in the main event loop.
     """
-    def __init__(self, parser=HRecipeParser.get_parser(), base_path=None, client=None, seed_id=None, url_id_format=None):
+    def __init__(self, parser=HRecipeParser.get_parser(), base_path=None, loop=None, start_id=None, url_id_format=None):
         """
         :param url_queue: Queue type of urls from a specific domain
         """
         self.consecutive_404_errors = 0
-        self.current_id = seed_id
+        self.current_id = start_id
         self.url_id_format = url_id_format
         self._url_queue = Queue()
         self.data_file_manager = DataFileManager()
         self.parser = parser
         self.followed = []  # TODO input via bisect in sorted list to make faster !?
         self.base_path = base_path
-        self.client = client
-        if not self.base_path or not seed_id or not url_id_format or not client:
-            raise AsyncScraperConfigError("No base path/seed_id/url_id_format/cient specified to limit link usefulness, \
+        self.loop = loop
+        if not self.base_path or not start_id or not url_id_format:
+            raise AsyncScraperConfigError("No base path/seed_id/url_id_format/loop specified,\
             please instantiate instance with base class.")
         self._generate_new_urls_from_id()
 
@@ -63,13 +64,14 @@ class AsyncScraper:
                 await self._write_content(json.dumps(data))
             else:
                 if self.consecutive_404_errors > MAXIMUM_SEQUENTIAL_404_ERRORS:
-                    raise StopAsyncIteration
+                    # raise StopAsyncIteration
+                    return
                 else:
                     self._generate_new_urls_from_id()
         except InvalidResponse:
             pass
-        await aio_sleep(DOMAIN_REQUEST_DELAY - (default_timer() - start))  # delay 5s minus time taken to this point
-        return
+        await aio_sleep(DOMAIN_REQUEST_DELAY - (start - default_timer()))  # delay call for a specific time period
+        ensure_future(self.__anext__(), loop=self.loop)
 
     async def make_request(self):
         """
@@ -78,19 +80,19 @@ class AsyncScraper:
         """
         if not self._url_queue.empty():
             url = self._url_queue.get()
-            async with self.client.get(url) as response:
-                if response.status == 200:
-                    logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
-                    # if response.url != url:
-                    #     self.followed.append(response.url)
-                    self.consecutive_404_errors = 0
-                    return await response.read()
-                else:
-                    logger.info('invalid response: {0}'.format(url))
-                    self.consecutive_404_errors += 1
-                    if self.consecutive_404_errors >= MAXIMUM_SEQUENTIAL_404_ERRORS:
-                        logger.error("Maximum sequential 404 error encountered. Last url: {0}".format(url))
-                    raise InvalidResponse()
+            conn = TCPConnector(verify_ssl=False)
+            async with ClientSession(connector=conn) as client:
+                async with client.get(url) as response:
+                    if response.status == 200:
+                        logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
+                        self.consecutive_404_errors = 0
+                        return await response.read()
+                    else:
+                        logger.info('invalid response: {0}'.format(url))
+                        self.consecutive_404_errors += 1
+                        if self.consecutive_404_errors >= MAXIMUM_SEQUENTIAL_404_ERRORS:
+                            logger.error("Maximum sequential 404 error encountered. Last url: {0}".format(url))
+                        raise InvalidResponse()
         else:
             return None
 
@@ -128,9 +130,6 @@ class AsyncScraper:
     def url_queue_is_empty(self):
         return self._url_queue.empty()
 
-    def set_client(self, client):
-        self.client = client
-
     @staticmethod
     def _id_generator(_id):
         while True:
@@ -138,7 +137,7 @@ class AsyncScraper:
             _id += 1
 
     def _generate_new_urls_from_id(self):
-        for i in range(self.current_id, URL_BATCH_SIZE_FROM_IDS, 1):
+        for i in range(self.current_id, self.current_id + URL_BATCH_SIZE_FROM_IDS, 1):
             self.current_id += 1
             self._url_queue.put(self.url_id_format.format(i))
 
@@ -164,7 +163,7 @@ class DataFileManager:
         Function finds the current datafile to begin writing to and sets private member self._current_data_file
         :return: string for the data path
         """
-        current_date_str = date().strftime("%Y_%m_%d_{0}")
+        current_date_str = datetime.now().date().strftime("%Y_%m_%d_{0}")
         for i in range(0, MAX_DAILY_FILES):
             file_name = os.path.join(self.data_folder, current_date_str.format(i))
             if not os.path.exists(file_name):
@@ -172,7 +171,8 @@ class DataFileManager:
                 with open(file_name, 'w+') as f:
                     f.write('[')
                 return
-        raise FileNumberException("Too many files (>100) for the current date: {0}".format(date().strftime("%Y-%m-%d")))
+        raise FileNumberException("Too many files (>100) for the current date: {0}".format(
+            datetime.now().date().strftime("%Y-%m-%d")))
 
     def _close_current_file(self):
         """
@@ -206,4 +206,3 @@ def write_data_to_file(data, file_name):
         f.write(',')  # Use a comma separator between JSON dicts in a list format
         f.write(data)
     return
-

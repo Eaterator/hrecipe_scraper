@@ -9,17 +9,19 @@ be found here:
 Some sites that support the micro format can be found here (lifted from http://microformats.org/wiki/hrecipe). Note
 that starred entries have been incorporated into the HRecipeParser tests. Double starred have been included in the
 main.py  `SCRAPER_CONFIGS` to be able to scrape by manipulating ID in URL field
+
     ** http://allrecipes.com/recipe/{id>=6663}
-    http://www.eat-vegan.rocks/
-    http://funcook.com/
-    http://www.therecipedepository.com
+    http://www.eat-vegan.rocks/ * - * no ID related URL structure
+    http://funcook.com/ * - * mixed language recipes, avoiding for now
+    ** http://www.therecipedepository.com/recipe/{id>=4}
     http://sabores.sapo.pt/
     ** http://www.epicurious.com/recipes/food/views/{id>=412}
-    http://www.williams-sonoma.com/
-    ** http://foodnetwork.com/recipes/{id >= 1}
-    http://www.plantoeat.com/recipe_book
+    http://www.williams-sonoma.com/  * - * no ID related URL structure
+    ** http://foodnetwork.com/recipes/{id >= 3}
+    http://www.plantoeat.com/recipe_book  * - * no good
     http://www.essen-und-trinken.de
     http://itsripe.com/recipes/
+    http://www.food.com/sitemap.xml * - * has site map with all recipe urls -> download * regexp site maps .gz xml format
 
 #Requirments and Environment
 Currently tested/developer on python version 3.5.2. See requirements.txt for additional requirements, and install like:

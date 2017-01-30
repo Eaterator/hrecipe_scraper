@@ -42,18 +42,18 @@ class HRecipeParser(Parser):
                 'cookTime': self._find_cook_time(soup),
             },
             'yield': self._find_yield(soup),
-            'rating': self._find_rating(soup),
+            'reviews': self._find_reviews(soup),
         }
 
-    @staticmethod
-    def _find_title(soup):
+    def _find_title(self, soup):
         # TODO make more general for meta only tags if necessary
-        title = []
-        title.extend(chain(
+        titles = []
+        titles.extend(chain(
+            soup.select('[class="recipe-name"]'),  # recipedepository
             soup.select('[itemprop="name"]'),
 
         ))
-        return title[0].text if title[0].text else title[0]['content']
+        return self._return_first_acceptable_value(titles)
 
     @staticmethod
     def _find_ingredients(soup):
@@ -78,17 +78,17 @@ class HRecipeParser(Parser):
         preparation_tags.extend(chain(
             soup.select('[itemprop="prepTime"]')
         ))
-        return [tag.text if tag.text else self._find_prep_times(tag) for tag in preparation_tags]
+        return [tag.text if tag.text else self._find_meta_tag_values(tag) for tag in preparation_tags]
 
     def _find_cook_time(self, soup):
         cook_tags = []
         cook_tags.extend(chain(
             soup.select('[itemprop="cookTime"]')
         ))
-        return [tag.text if tag.text else self._find_prep_times(tag) for tag in cook_tags]
+        return [tag.text if tag.text else self._find_meta_tag_values(tag) for tag in cook_tags]
 
     @staticmethod
-    def _find_prep_times(tag):
+    def _find_meta_tag_values(tag):
         """If not text is in the cookTime/prepTime tags, it tries to find appropriate HTML attribute that
         locates this information"""
         #                 allrecipes, foodnetwork
@@ -100,16 +100,70 @@ class HRecipeParser(Parser):
                 pass
         return
 
-    @staticmethod
-    def _find_yield(soup):
-        # TODO make more general for meta only tags if necessary
-        _yield = []
-        _yield.extend(chain(
+    def _find_yield(self, soup):
+        yields = []
+        yields.extend(chain(
             soup.select('[itemprop="recipeYield"]'),
         ))
-        return _yield[0].text if _yield[0].text else _yield[0]['content']
+        return self._return_first_acceptable_value(yields)
+
+    def _find_reviews(self, soup):
+        texts_tags = []
+        texts_tags.extend(chain(
+            soup.select('[itemprop="reviewBody"]'),  # allrecipes
+            soup.select('[class="review-text"]'),  # epicurious
+            soup.select('[class="gig-comment-body"]'),  # foodnetwork
+        ))
+        try:
+            aggregate = soup.select('[itemprop="aggregateRating"]')
+            ratings = {
+                'average': self._return_first_acceptable_value(
+                    aggregate[0].select('[itemprop="ratingValue"]')
+                ),
+                'count': self._return_first_acceptable_value(
+                    aggregate[0].select('[itemprop="ratingCount"]'),
+                    aggregate[0].select('[itemprop="reviewCount"]')
+                ),
+                'best': self._return_first_acceptable_value(
+                    aggregate[0].select('[itemprop="bestRating"]')
+                ),
+                'worst': self._return_first_acceptable_value(
+                    aggregate[0].select('[itemprop="worstRating"]')
+                )
+            }
+        except IndexError:
+            individual_ratings = soup.select('[itemprop="ratingValue"]')
+            ratings = {
+                'ratings': individual_ratings,
+            }
+        if not ratings:
+            ratings = self._find_foodnetwork_ratings(soup)
+        return {
+            'text': [tag.text for tag in texts_tags],
+            'ratings': ratings,
+        }
 
     @staticmethod
-    def _find_rating(soup):
-        # TODO implement logic to find ratings? Not super necessary atm
-        return None
+    def _find_foodnetwork_ratings(soup):
+        count = soup.select('[class="gig-rating-sum"]')
+        average = soup.select('[class="gig-rating-stars"]')
+        individual_reviews = soup.select('[class="gig-comment-rating"]')
+        individual_ratings = [len(review.select('[class="gig-comment-rating-start-full"]'))
+                              for review in individual_reviews]
+        return {
+            'average': average[0]['title'] if len(average) and hasattr(average[0], 'title') else None,
+            'count': count[0].text if len(count) else None,
+            'best': max(individual_ratings) if len(individual_ratings) else None,
+            'worst': min(individual_ratings) if len(individual_ratings) else None,
+            'ratings': individual_ratings,
+        }
+
+    def _return_first_acceptable_value(self, *tags):
+        for tag_list in tags:
+            for tag in tag_list:
+                if tag.text:
+                    return tag.text
+                value = self._find_meta_tag_values(tag)
+                if value:
+                    return value
+        return

@@ -9,6 +9,8 @@ __python_version__ = '3.5.2'
 #             Data Storage Settings           #
 try:
     DATA_PATH = os.environ['EATORATOR_DATA_SCRAPING_PATH']
+    if not os.path.exists(DATA_PATH):
+        os.makedirs(DATA_PATH)
 except KeyError:
     print("Please specify a data path ENV variable 'EATORATOR_DATA_SCRAPING_PATH' to use scraper")
     sys.exit(0)
@@ -17,10 +19,16 @@ MAX_DAILY_FILES = os.environ['MAX_DAILY_FILES'] if 'MAX_DAILY_FILES' in os.envir
 DEFAULT_MAX_FILE_SIZE = 10 * 1024 * 1024  # Size in megabytes ( 10 MB )
 MAX_FILE_SIZE = os.environ['MAX_FILE_SIZE'] if 'MAX_FILE_SIZE' in os.environ else DEFAULT_MAX_FILE_SIZE
 
-
+###############################################
+#              Logging Config                 #
+logging_path = os.path.join(os.environ['EATORATOR_DATA_SCRAPING_PATH'], 'log')
+if not os.path.exists(logging_path):
+    os.makedirs(logging_path)
 logging.basicConfig(
-    filename=os.path.join(os.environ['EATORATOR_DATA_SCRAPING_PATH'], 'log', 'log.txt'),
+    filename=os.path.join(logging_path, 'log.txt'),
     level=logging.DEBUG,
-    formatter=logging.Formatter('%(asctime)4s - %(name)4s - %(message)s')
 )
+stream = logging.StreamHandler()
+stream.setFormatter(logging.Formatter('%(asctime)4s - %(name)4s - %(message)s'))
 logger = logging.getLogger('scraper')
+logger.addHandler(stream)
