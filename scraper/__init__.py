@@ -4,7 +4,6 @@ import sys
 
 __version__ = '0.0.1'
 __python_version__ = '3.5.2'
-DEBUG = True
 ###############################################
 #             Data Storage Settings           #
 try:
@@ -26,9 +25,7 @@ if not os.path.exists(logging_path):
     os.makedirs(logging_path)
 logging.basicConfig(
     filename=os.path.join(logging_path, 'log.txt'),
-    level=logging.DEBUG,
+    format='%(asctime)4s| %(levelname)4s| %(name)4s| %(message)s',
+    level=logging.DEBUG
 )
-stream = logging.StreamHandler()
-stream.setFormatter(logging.Formatter('%(asctime)4s - %(name)4s - %(message)s'))
 logger = logging.getLogger('scraper')
-logger.addHandler(stream)

@@ -23,6 +23,30 @@ main.py  `SCRAPER_CONFIGS` to be able to scrape by manipulating ID in URL field
     http://itsripe.com/recipes/
     http://www.food.com/sitemap.xml * - * has site map with all recipe urls -> download * regexp site maps .gz xml format
 
+#Data Format
+The data is written to files in the data scraper path in the format of the current date `yy_mm_dd_i.txt` and is in JSON
+format like this:
+
+    ,{entry}, {entry}
+
+so must be loaded be removing the first comma and surrounding by `[]` characters. Individual entries look like this:
+
+    entry = {
+        'url': 'http://sourceOfRecipe.com...',
+        'ingredients': ['list', 'of', 'ingredients'],
+        'instructions': ['list', 'of', 'instructions'],
+        'reviews': {
+            'text': ['individual', 'review', 'text'],
+            'rating': {
+                'best': '1',
+                'worst': '1',
+                'count': '25',
+                'average': '3.5'
+            }
+        },
+        'title': 'This great recipe',
+    }
+
 #Requirments and Environment
 Currently tested/developer on python version 3.5.2. See requirements.txt for additional requirements, and install like:
 
@@ -37,12 +61,16 @@ values are required, and the others have default fall-backs.
     MAX_FILE_SIZE - integer, controls size of data files before rotation, default is 10 MB
 
 # Setup and Use
-The scraper needs a few seed sites to start crawling, as not patterns to urls could be seen. The seed sites are used
-to collect a recipe and look to links for new recipes. The base path is the sites domain/slug to the recipe posts, i.e.
-
-    domain.com/recipes/...
-
-this base path must be matched to crawl for recipes. Right not only these recipe paths are crawled. After tweaking these
-settings in the main.py file, run from the command line like:
+The scraper currently exploits the redirect path in the format `wwww.domain.com/path/to/recipe/{id}` to get
+recipes from a site. In `main.py` the `start_id` is used as the first id. The id will be incremented one by one until
+10 subsequent 404 errors are encountered. After tweaking these settings, the file can be run like:
 
     (my-virtual-env) user$ python main.py
+
+# Extensions
+    *Create a helper file that will find the last consective id from which a response was made for a base_path to use
+    as the start id
+    *Create an additional `__init__` for an async scraper than can use site map downloads to create a list of potential
+    recipe sites based on the site's recipe format
+    *Negating sites from a site map that have already been followed from a site map. A small SQLite database may be best
+    for this purpose.

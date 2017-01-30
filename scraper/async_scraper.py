@@ -1,4 +1,4 @@
-from . import MAX_FILE_SIZE, MAX_DAILY_FILES, DATA_PATH, logger, DEBUG
+from . import MAX_FILE_SIZE, MAX_DAILY_FILES, DATA_PATH, logger
 import os
 import json
 from timeit import default_timer
@@ -35,9 +35,6 @@ class AsyncScraper:
     run in the main event loop.
     """
     def __init__(self, parser=HRecipeParser.get_parser(), base_path=None, loop=None, start_id=None, url_id_format=None):
-        """
-        :param url_queue: Queue type of urls from a specific domain
-        """
         self.consecutive_404_errors = 0
         self.current_id = start_id
         self.url_id_format = url_id_format
@@ -49,7 +46,7 @@ class AsyncScraper:
         self.loop = loop
         if not self.base_path or not start_id or not url_id_format:
             raise AsyncScraperConfigError("No base path/seed_id/url_id_format/loop specified,\
-            please instantiate instance with base class.")
+                please instantiate instance with base class.")
         self._generate_new_urls_from_id()
 
     def __aiter__(self):
@@ -61,10 +58,9 @@ class AsyncScraper:
             resp, url = await self.make_request()
             if resp:
                 data = self.parse_content(resp, url)
-                await self._write_content(json.dumps(data))
+                await self._write_content(data)
             else:
                 if self.consecutive_404_errors > MAXIMUM_SEQUENTIAL_404_ERRORS:
-                    # raise StopAsyncIteration
                     return
                 else:
                     self._generate_new_urls_from_id()
@@ -88,7 +84,7 @@ class AsyncScraper:
                         self.consecutive_404_errors = 0
                         return await response.read(), response.url
                     else:
-                        logger.info('invalid response: {0}'.format(url))
+                        logger.info('invalid response. Status: {0}, url:  {1}'.format(response.status, url))
                         self.consecutive_404_errors += 1
                         if self.consecutive_404_errors >= MAXIMUM_SEQUENTIAL_404_ERRORS:
                             logger.error("Maximum sequential 404 error encountered. Last url: {0}".format(url))
@@ -107,10 +103,7 @@ class AsyncScraper:
         data = self.parser(soup)
         data['url'] = url
         # map(self.url_queue.put, self.find_links(soup, self.base_path))
-        if DEBUG:
-            return json.dumps(data, indent=4)
-        else:
-            return json.dumps(data)
+        return json.dumps(data)
 
     def find_links(self, soup):
         """
@@ -157,11 +150,19 @@ class AsyncScraper:
             write_data_to_file(data, self.data_file_manager.current_data_file)
         )
 
+    async def _generate_ids_from_site_map(self):
+        # TODO complete site map downloads + url searches for generating ids
+        for site_map in self.site_maps:
+            pass
+            #async get site map
+            # for url in urls:
+                # [self._url_queue.put(url) for url in urls if any(i in url for i in base_paths)]
+
 
 class DataFileManager:
 
     """
-    Implemented as a non-threadsafe singleton to have mutliple co-routines to share the same data management
+    Implemented as a non-threadsafe singleton to have multiple co-routines to share the same data management
     handler/instance.
     """
     __instance = None
@@ -182,13 +183,11 @@ class DataFileManager:
         Function finds the current datafile to begin writing to and sets private member self._current_data_file
         :return: string for the data path
         """
-        current_date_str = datetime.now().date().strftime("%Y_%m_%d_{0}")
-        for i in range(0, MAX_DAILY_FILES):
+        current_date_str = datetime.now().date().strftime("%Y_%m_%d_{0}.txt")
+        for i in range(1, MAX_DAILY_FILES + 1):
             file_name = os.path.join(self.data_folder, current_date_str.format(i))
             if not os.path.exists(file_name):
                 self._current_data_file = file_name
-                with open(file_name, 'w+') as f:
-                    f.write('[')
                 return
         raise FileNumberException("Too many files (>100) for the current date: {0}".format(
             datetime.now().date().strftime("%Y-%m-%d")))

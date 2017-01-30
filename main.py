@@ -1,28 +1,25 @@
 import asyncio
 import sys
-
-from aiohttp import ClientSession
-
 from scraper.recipe_parsers import HRecipeParser
-from scraper.async_scraper import AsyncScraper, DOMAIN_REQUEST_DELAY
+from scraper.async_scraper import AsyncScraper
 
 SCRAPER_CONFIGS = {
     'allrecipes': {
         'base_path': ['allrecipes.com/recipe'],
         'parser': HRecipeParser.get_parser(),
-        'url_id_format': 'https://allrecipes.com/recipe/{0}',
+        'url_id_format': 'http://allrecipes.com/recipe/{0}',
         'start_id': 6663,
     },
     'foodnetwork': {
         'base_path': ['foodnetwork.com/recipes', '/recipes'],
         'parser': HRecipeParser.get_parser(),
-        'url_id_format': 'https://www.foodnetwork.com/recipes/{0}',
+        'url_id_format': 'http://www.foodnetwork.com/recipes/{0}',
         'start_id': 3,
     },
     'epicurious': {
         'base_path': ['epicurious.com/recipes/food/views', '/recipes/food/views/'],
         'parser': HRecipeParser.get_parser(),
-        'url_id_format': 'https://www.epicurious.com/recipes/food/views/{0}',
+        'url_id_format': 'http://www.epicurious.com/recipes/food/views/{0}',
         'start_id': 412,
     },
     'recipedepository':{

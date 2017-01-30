@@ -1,5 +1,9 @@
+import re
 from abc import ABCMeta, abstractmethod
 from itertools import chain
+
+HTML_TAG_PATTERN = r'<.*?>'
+WHITESPACE_PATTERN = r'([\s\t\n\r]){2,}'
 
 
 class Parser:
@@ -55,23 +59,21 @@ class HRecipeParser(Parser):
         ))
         return self._return_first_acceptable_value(titles)
 
-    @staticmethod
-    def _find_ingredients(soup):
+    def _find_ingredients(self, soup):
         ingredient_tags = []
         ingredient_tags.extend(chain(
             soup.select('[itemprop="ingredients"]'),  # allrecipes
             soup.select('[itemprop="ingredient"]')  # epicurious, foodnetwork
         ))
-        return [tag.text for tag in ingredient_tags]
+        return [self._clean_text_and_html_tags(tag.text) for tag in ingredient_tags]
 
-    @staticmethod
-    def _find_instructions(soup):
+    def _find_instructions(self, soup):
         instruction_tags = []
         instruction_tags.extend(chain(
             soup.select('[itemprop="recipeDirections"]'),  # epicurious, foodnetwork
             soup.select('[itemprop="recipeInstructions"]'),  # allrecipes
         ))
-        return [tag.text if tag.text else tag for tag in instruction_tags]
+        return [self._clean_text_and_html_tags(tag.text) if tag.text else tag for tag in instruction_tags]
 
     def _find_preparation_time(self, soup):
         preparation_tags = []
@@ -139,7 +141,7 @@ class HRecipeParser(Parser):
         if not ratings:
             ratings = self._find_foodnetwork_ratings(soup)
         return {
-            'text': [tag.text for tag in texts_tags],
+            'text': [self._clean_text_and_html_tags(tag.text) for tag in texts_tags],
             'ratings': ratings,
         }
 
@@ -167,3 +169,9 @@ class HRecipeParser(Parser):
                 if value:
                     return value
         return
+
+    @staticmethod
+    def _clean_text_and_html_tags(text):
+        return re.sub(HTML_TAG_PATTERN, '',
+                      re.sub(WHITESPACE_PATTERN, '\n', text)
+                      )
