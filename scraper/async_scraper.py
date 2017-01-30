@@ -1,4 +1,4 @@
-from . import MAX_FILE_SIZE, MAX_DAILY_FILES, DATA_PATH, logger
+from . import MAX_FILE_SIZE, MAX_DAILY_FILES, DATA_PATH, logger, DEBUG
 import os
 import json
 from timeit import default_timer
@@ -58,9 +58,9 @@ class AsyncScraper:
     async def __anext__(self):
         start = default_timer()
         try:
-            resp = await self.make_request()
+            resp, url = await self.make_request()
             if resp:
-                data = self.parse_content(resp)
+                data = self.parse_content(resp, url)
                 await self._write_content(json.dumps(data))
             else:
                 if self.consecutive_404_errors > MAXIMUM_SEQUENTIAL_404_ERRORS:
@@ -86,7 +86,7 @@ class AsyncScraper:
                     if response.status == 200:
                         logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
                         self.consecutive_404_errors = 0
-                        return await response.read()
+                        return await response.read(), response.url
                     else:
                         logger.info('invalid response: {0}'.format(url))
                         self.consecutive_404_errors += 1
@@ -94,17 +94,23 @@ class AsyncScraper:
                             logger.error("Maximum sequential 404 error encountered. Last url: {0}".format(url))
                         raise InvalidResponse()
         else:
-            return None
+            return None, None
 
-    def parse_content(self, response):
+    def parse_content(self, response, url):
         """
         Parses content from response into JSON format for storage, and also adds any unfollowed links to the queue
         :param response: the raw HTTP response
+        :param url: final url of the request
         :return: HTTP response parsed by the given parser (ready to be written to file in JSON format)
         """
         soup = BeautifulSoup(response, 'lxml')
+        data = self.parser(soup)
+        data['url'] = url
         # map(self.url_queue.put, self.find_links(soup, self.base_path))
-        return json.dumps(self.parser(soup))
+        if DEBUG:
+            return json.dumps(data, indent=4)
+        else:
+            return json.dumps(data)
 
     def find_links(self, soup):
         """
@@ -153,6 +159,19 @@ class AsyncScraper:
 
 
 class DataFileManager:
+
+    """
+    Implemented as a non-threadsafe singleton to have mutliple co-routines to share the same data management
+    handler/instance.
+    """
+    __instance = None
+
+    @classmethod
+    def __new__(cls, *args, **kwargs):
+        if not cls.__instance:
+            cls.__instance = object.__new__(cls)
+        return cls.__instance
+
     def __init__(self, data_folder=DATA_PATH, max_file_size=MAX_FILE_SIZE):
         self.data_folder = data_folder
         self.max_file_size = max_file_size

@@ -4,7 +4,7 @@ import sys
 
 __version__ = '0.0.1'
 __python_version__ = '3.5.2'
-
+DEBUG = True
 ###############################################
 #             Data Storage Settings           #
 try:
