@@ -15,7 +15,7 @@ from .exceptions import InvalidResponse, AsyncScraperConfigError, FileNumberExce
 ###############################################
 #             Id Generator Settings           #
 MAXIMUM_SEQUENTIAL_404_ERRORS = 10
-URL_BATCH_SIZE_FROM_IDS = 3
+URL_BATCH_SIZE_FROM_IDS = 50
 
 ###############################################
 #        File writing thread executor         #
@@ -150,13 +150,13 @@ class AsyncScraper:
             write_data_to_file(data, self.data_file_manager.current_data_file)
         )
 
-    async def _generate_ids_from_site_map(self):
-        # TODO complete site map downloads + url searches for generating ids
-        for site_map in self.site_maps:
-            pass
-            #async get site map
-            # for url in urls:
-                # [self._url_queue.put(url) for url in urls if any(i in url for i in base_paths)]
+    # async def _generate_ids_from_site_map(self):
+    #     # TODO complete site map downloads + url searches for generating ids
+    #     for site_map in self.site_maps:
+    #         pass
+    #         #async get site map
+    #         # for url in urls:
+    #             # [self._url_queue.put(url) for url in urls if any(i in url for i in base_paths)]
 
 
 class DataFileManager:

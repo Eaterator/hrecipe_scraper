@@ -6,12 +6,13 @@ __version__ = '0.0.1'
 __python_version__ = '3.5.2'
 ###############################################
 #             Data Storage Settings           #
+EATERATOR_ENV_VARIABLE = 'EATERATOR_DATA_SCRAPING_PATH'
 try:
-    DATA_PATH = os.environ['EATORATOR_DATA_SCRAPING_PATH']
+    DATA_PATH = os.environ[EATERATOR_ENV_VARIABLE]
     if not os.path.exists(DATA_PATH):
         os.makedirs(DATA_PATH)
 except KeyError:
-    print("Please specify a data path ENV variable 'EATORATOR_DATA_SCRAPING_PATH' to use scraper")
+    print("Please specify a data path ENV variable 'EATERATOR_DATA_SCRAPING_PATH' to use scraper")
     sys.exit(0)
 DEFAULT_MAX_FILES_PER_DAY = 100
 MAX_DAILY_FILES = os.environ['MAX_DAILY_FILES'] if 'MAX_DAILY_FILES' in os.environ else DEFAULT_MAX_FILES_PER_DAY
@@ -20,11 +21,12 @@ MAX_FILE_SIZE = os.environ['MAX_FILE_SIZE'] if 'MAX_FILE_SIZE' in os.environ els
 
 ###############################################
 #              Logging Config                 #
-logging_path = os.path.join(os.environ['EATORATOR_DATA_SCRAPING_PATH'], 'log')
+logging_path = os.path.join(os.environ[EATERATOR_ENV_VARIABLE], 'log')
+LOGGING_FILE = os.path.join(logging_path, 'log.txt')
 if not os.path.exists(logging_path):
     os.makedirs(logging_path)
 logging.basicConfig(
-    filename=os.path.join(logging_path, 'log.txt'),
+    filename=LOGGING_FILE,
     format='%(asctime)4s| %(levelname)4s| %(name)4s| %(message)s',
     level=logging.DEBUG
 )

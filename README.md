@@ -67,6 +67,11 @@ recipes from a site. In `main.py` the `start_id` is used as the first id. The id
 
     (my-virtual-env) user$ python main.py
 
+To inspect a log file to determine the next id to start, ensure there is a log file available with entries and run the
+following:
+
+    (my-virtual-env) user$ python main.py --calc-start-id
+
 # Extensions
     *Create a helper file that will find the last consective id from which a response was made for a base_path to use
     as the start id

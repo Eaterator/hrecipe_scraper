@@ -2,7 +2,11 @@ import asyncio
 import sys
 from scraper.recipe_parsers import HRecipeParser
 from scraper.async_scraper import AsyncScraper
+from scraper.tools.log_inspector import LogInspector
+from scraper.tools.data_loader import DataLoader
+import argparse
 
+# default start_ids are the minimum id that returns a valid result
 SCRAPER_CONFIGS = {
     'allrecipes': {
         'base_path': ['allrecipes.com/recipe'],
@@ -38,21 +42,38 @@ def init_scrapers(loop):
     return scrapers
 
 
-def main(loop):
+def modify_scrapers(scrapers):
+    for text in DataLoader.iter_log_text():
+        max_ids = LogInspector.find_largest_ids(text)
+        for site in max_ids:
+            if max_ids[site]:
+                setattr(scrapers[site], 'current_id', max_ids[site])
+
+
+def main(loop, modify_scraper_start_id=False):
     """
     Wrapper method to launch co-routines that recursively call the next url to scrape.
-    :param loop:
+    :param loop: the event loop
+    :param modify_scraper_start_id: whether to modify start_id from collected values in the log
     :return:
     """
     scrapers = init_scrapers(loop)
+    if modify_scraper_start_id:
+        modify_scrapers(scrapers)
     for i, key_pair in enumerate(scrapers.items()):
-            asyncio.ensure_future(key_pair[1].__anext__(), loop=loop)
+        asyncio.ensure_future(key_pair[1].__anext__(), loop=loop)
     return
 
 
 if __name__ == '__main__':
+    # Parse command line args
+    parser = argparse.ArgumentParser(description="Main Scraper Launcher")
+    parser.add_argument('--calc-start-id', action="store_true", help="Inspect log for largest ids for start_idx")
+    args = parser.parse_args()
+    modify_start_id = True if args.calc_start_id else False
+    # Setup wrapper for async scraper
     main_event_loop = asyncio.get_event_loop()
-    main(main_event_loop)
+    main(main_event_loop, modify_scraper_start_id=modify_start_id)
     while True:
         pending_tasks = asyncio.Task.all_tasks(main_event_loop)
         if sum([task.done() for task in pending_tasks]) >= len(pending_tasks):
