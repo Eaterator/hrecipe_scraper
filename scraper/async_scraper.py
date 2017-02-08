@@ -14,13 +14,12 @@ from .exceptions import InvalidResponse, AsyncScraperConfigError, FileNumberExce
 
 ###############################################
 #             Id Generator Settings           #
-MAXIMUM_SEQUENTIAL_404_ERRORS = 10
+MAXIMUM_SEQUENTIAL_404_ERRORS = 25
 URL_BATCH_SIZE_FROM_IDS = 50
 
 ###############################################
 #        File writing thread executor         #
 EXECUTOR = ThreadPoolExecutor(max_workers=1)
-
 
 ###############################################
 #             Request behaviour               #

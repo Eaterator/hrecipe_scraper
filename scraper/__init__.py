@@ -4,6 +4,7 @@ import sys
 
 __version__ = '0.0.1'
 __python_version__ = '3.5.2'
+
 ###############################################
 #             Data Storage Settings           #
 EATERATOR_ENV_VARIABLE = 'EATERATOR_DATA_SCRAPING_PATH'
@@ -12,7 +13,7 @@ try:
     if not os.path.exists(DATA_PATH):
         os.makedirs(DATA_PATH)
 except KeyError:
-    print("Please specify a data path ENV variable 'EATERATOR_DATA_SCRAPING_PATH' to use scraper")
+    print("Please specify a data path ENV variable '{0}' to use scraper".format(EATERATOR_ENV_VARIABLE))
     sys.exit(0)
 DEFAULT_MAX_FILES_PER_DAY = 100
 MAX_DAILY_FILES = os.environ['MAX_DAILY_FILES'] if 'MAX_DAILY_FILES' in os.environ else DEFAULT_MAX_FILES_PER_DAY

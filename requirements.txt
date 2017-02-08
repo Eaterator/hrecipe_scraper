@@ -3,5 +3,6 @@ async-timeout==1.1.0
 beautifulsoup4==4.5.3
 bs4==0.0.1
 chardet==2.3.0
+lxml==3.7.2
 multidict==2.1.4
 yarl==0.8.1
