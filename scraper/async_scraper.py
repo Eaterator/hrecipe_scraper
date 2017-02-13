@@ -3,7 +3,7 @@ import os
 import json
 from timeit import default_timer
 from asyncio import sleep as aio_sleep, ensure_future
-from aiohttp import ClientSession, TCPConnector
+from aiohttp import ClientSession, TCPConnector, ClientResponseError, ClientOSError
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -74,20 +74,24 @@ class AsyncScraper:
         :return:
         """
         if not self._url_queue.empty():
-            url = self._url_queue.get()
-            conn = TCPConnector(verify_ssl=False)
-            async with ClientSession(connector=conn) as client:
-                async with client.get(url) as response:
-                    if response.status == 200:
-                        logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
-                        self.consecutive_404_errors = 0
-                        return await response.read(), response.url
-                    else:
-                        logger.info('invalid response. Status: {0}, url:  {1}'.format(response.status, url))
-                        self.consecutive_404_errors += 1
-                        if self.consecutive_404_errors >= MAXIMUM_SEQUENTIAL_404_ERRORS:
-                            logger.error("Maximum sequential 404 error encountered. Last url: {0}".format(url))
-                        raise InvalidResponse()
+            try:
+                url = self._url_queue.get()
+                conn = TCPConnector(verify_ssl=False)
+                async with ClientSession(connector=conn) as client:
+                    async with client.get(url) as response:
+                        if response.status == 200:
+                            logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
+                            self.consecutive_404_errors = 0
+                            return await response.read(), response.url
+                        else:
+                            logger.info('invalid response. Status: {0}, url:  {1}'.format(response.status, url))
+                            self.consecutive_404_errors += 1
+                            if self.consecutive_404_errors >= MAXIMUM_SEQUENTIAL_404_ERRORS:
+                                logger.error("Maximum sequential 404 error encountered. Last url: {0}".format(url))
+                            raise InvalidResponse()
+            except (ClientResponseError, ClientOSError):
+                logger.error("Error with aiohttp request. url id: {0}".format(url))
+                raise InvalidResponse()
         else:
             return None, None
 
