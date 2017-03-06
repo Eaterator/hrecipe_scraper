@@ -6,7 +6,8 @@ from recipe_scraper import EATERATOR_ENV_VARIABLE, LOGGING_FILE
 class DataLoader:
 
     def __init__(self):
-        self.files = [f for f in os.listdir(os.environ[EATERATOR_ENV_VARIABLE]) if os.path.isfile(f)]
+        self.files = [f for f in os.listdir(os.environ[EATERATOR_ENV_VARIABLE])
+                      if os.path.isfile(os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f))]
 
     def iter_json_data(self):
         for _file in self.files:
