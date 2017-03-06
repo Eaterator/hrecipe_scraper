@@ -4,7 +4,7 @@ from urllib.request import urlopen
 
 from bs4 import BeautifulSoup
 
-from scraper.recipe_parsers import HRecipeParser
+from recipe_scraper.recipe_parsers import HRecipeParser
 
 TEST_PREP_TIMES = [
     'allrecipe',

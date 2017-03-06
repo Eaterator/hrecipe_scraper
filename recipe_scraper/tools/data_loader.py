@@ -1,6 +1,6 @@
 import os
 import json
-from scraper import EATERATOR_ENV_VARIABLE, LOGGING_FILE
+from recipe_scraper import EATERATOR_ENV_VARIABLE, LOGGING_FILE
 
 
 class DataLoader:

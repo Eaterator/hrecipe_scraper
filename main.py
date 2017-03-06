@@ -1,9 +1,9 @@
 import asyncio
 import sys
-from scraper.recipe_parsers import HRecipeParser
-from scraper.async_scraper import AsyncScraper
-from scraper.tools.log_inspector import LogInspector
-from scraper.tools.data_loader import DataLoader
+from recipe_scraper.recipe_parsers import HRecipeParser
+from recipe_scraper.async_scraper import AsyncScraper
+from recipe_scraper.tools.log_inspector import LogInspector
+from recipe_scraper.tools.data_loader import DataLoader
 import argparse
 
 # default start_ids are the minimum id that returns a valid result
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     parser.add_argument('--calc-start-id', action="store_true", help="Inspect log for largest ids for start_idx")
     args = parser.parse_args()
     modify_start_id = True if args.calc_start_id else False
-    # Setup wrapper for async scraper
+    # Setup wrapper for async recipe_scraper
     main_event_loop = asyncio.get_event_loop()
     main(main_event_loop, modify_scraper_start_id=modify_start_id)
     while True:
