@@ -5,13 +5,16 @@ from recipe_scraper import EATERATOR_ENV_VARIABLE, LOGGING_FILE
 
 class DataLoader:
 
-    def __init__(self):
+    def __init__(self, verbose=True):
         self.files = [os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f)
                       for f in os.listdir(os.environ[EATERATOR_ENV_VARIABLE])
                       if os.path.isfile(os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f))]
+        self.verbose = verbose
 
     def iter_json_data(self):
         for _file in self.files:
+            if self.verbose:
+                print("Loading File: {0}".format(_file))
             try:
                 with open(_file, 'r', errors="ignore") as f:
                     data = json.loads('[' + f.read()[1:] + ']')
