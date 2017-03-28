@@ -17,7 +17,7 @@ class DataLoader:
                 try:
                     data = json.loads('[' + text + ']')
                 except UnicodeDecodeError:
-                    text.encode('utf-8', 'ignore').decode('utf-8', 'ignore')
+                    bytes(text, 'utf-8').decode('utf-8', 'ignore')
                     data = json.loads('[' + text + ']')
             yield data
 
