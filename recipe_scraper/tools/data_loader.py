@@ -8,7 +8,8 @@ class DataLoader:
     def __init__(self, verbose=True):
         self.files = [os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f)
                       for f in os.listdir(os.environ[EATERATOR_ENV_VARIABLE])
-                      if os.path.isfile(os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f))]
+                      if os.path.isfile(os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f)) and
+                      (os.path.splitext(f)[1] == '.txt' or os.path.splitext(f)[0] == '.txt')]
         self.verbose = verbose
 
     def iter_json_data(self):
