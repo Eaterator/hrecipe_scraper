@@ -13,7 +13,12 @@ class DataLoader:
     def iter_json_data(self):
         for _file in self.files:
             with open(_file, 'r') as f:
-                data = json.loads('[' + f.read()[1:] + ']')
+                text = f.read()
+                try:
+                    data = json.loads('[' + text + ']')
+                except UnicodeDecodeError:
+                    text.encode('utf-8', 'ignore').decode('utf-8', 'ignore')
+                    data = json.loads('[' + text + ']')
             yield data
 
     @staticmethod
