@@ -13,9 +13,8 @@ class DataLoader:
         self.verbose = verbose
 
     def iter_json_data(self):
+        recipe_count = 0
         for _file in self.files:
-            if self.verbose:
-                print("Loading File: {0}".format(_file))
             try:
                 with open(_file, 'r', errors="ignore") as f:
                     data = json.loads('[' + f.read()[1:] + ']')
@@ -27,7 +26,14 @@ class DataLoader:
                     except UnicodeDecodeError:
                         bytes(text, 'utf-8').decode('utf-8', 'ignore')
                         data = json.loads('[' + text + ']')
+            if self.verbose:
+                recipe_count += len(data) if data else 0
+                message = len(data) if data else "** FAILED LOADING **"
+                print("Loading File: {0} | recipe count: {1}".format(_file, message))
             yield data
+        if self.verbose:
+            print("\n------Total recipes: {0}".format(recipe_count))
+            print("\n\n--------------Complete --------------------\n")
 
     @staticmethod
     def iter_log_text(line_size=5000):
