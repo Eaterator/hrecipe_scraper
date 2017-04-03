@@ -11,8 +11,6 @@ class DataLoader:
                       if os.path.isfile(os.path.join(os.environ[EATERATOR_ENV_VARIABLE], f)) and
                       (os.path.splitext(f)[1] == '.txt' or os.path.splitext(f)[0] == '.txt')]
         self.verbose = verbose
-        if verbose:
-            print("files: {0}".format(self.files))
 
     def iter_json_data(self):
         recipe_count = 0
