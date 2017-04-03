@@ -35,7 +35,7 @@ class DataLoader:
             if self.verbose:
                 recipe_count += len(data) if data else 0
                 message = len(data) if data else "** FAILED LOADING **"
-                print("\tLoaded recipes: {0}".format(len(message)))
+                print("\tLoaded recipes: {0}".format(message))
             yield data
         if self.verbose:
             print("\n------Total recipes: {0}".format(recipe_count))
