@@ -26,6 +26,7 @@ EXECUTOR = ThreadPoolExecutor(max_workers=1)
 DOMAIN_REQUEST_DELAY = 5  # time in seconds
 
 
+# TODO refactor AsyncScraper to allow for a 'url' generator that will allow use of a SiteMapGenerator
 class AsyncScraper:
     """
     Class to handle asynchronous scraping of a given queue of urls. Expects the urls to
@@ -43,6 +44,8 @@ class AsyncScraper:
         self.followed = []  # TODO input via bisect in sorted list to make faster !?
         self.base_path = base_path
         self.loop = loop
+        self.sitemap_loader = None
+        self.sitemap_link_generator = None
         if not self.base_path or not start_id or not url_id_format:
             raise AsyncScraperConfigError("No base path/seed_id/url_id_format/loop specified,\
                 please instantiate instance with base class.")
@@ -139,9 +142,42 @@ class AsyncScraper:
             _id += 1
 
     def _generate_new_urls_from_id(self):
-        for i in range(self.current_id, self.current_id + URL_BATCH_SIZE_FROM_IDS, 1):
-            self.current_id += 1
-            self._url_queue.put(self.url_id_format.format(i))
+        if not self.sitemap_link_generator:
+            for i in range(self.current_id, self.current_id + URL_BATCH_SIZE_FROM_IDS, 1):
+                self.current_id += 1
+                self._url_queue.put(self.url_id_format.format(i))
+        elif self.sitemap_link_generator:
+            for _ in range(URL_BATCH_SIZE_FROM_IDS):
+                try:
+                    link = next(self.sitemap_link_generator)
+                    if link:
+                        self._url_queue.put(link)
+                    else:
+                        return
+                except StopIteration:
+                    return
+        else:
+            return
+
+    def reset_url_queue(self):
+        self._url_queue = Queue()
+        self._generate_new_urls_from_id()
+
+    async def set_sitemap_link_loaders(self, loader):
+        self.sitemap_loader = loader
+        await self._load_sites_visited_from_log_file()
+        self.sitemap_link_generator = loader.get_links
+        self.reset_url_queue()
+
+    async def _load_sites_visited_from_log_file(self):
+        if self.sitemap_loader:
+            await self.sitemap_loader.create_links_set_from_log()
+        return
+
+    @property
+    def loader_site_set_length(self):
+        if self.sitemap_link_generator:
+            return self.sitemap_loader.site_set_length
 
     async def _write_content(self, data):
         """
@@ -152,14 +188,6 @@ class AsyncScraper:
         EXECUTOR.submit(
             write_data_to_file(data, self.data_file_manager.current_data_file)
         )
-
-    # async def _generate_ids_from_site_map(self):
-    #     # TODO complete site map downloads + url searches for generating ids
-    #     for site_map in self.site_maps:
-    #         pass
-    #         #async get site map
-    #         # for url in urls:
-    #             # [self._url_queue.put(url) for url in urls if any(i in url for i in base_paths)]
 
 
 class DataFileManager:
