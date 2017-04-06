@@ -140,7 +140,7 @@ class SiteMapDownloader:
         )
         async with aiofiles.open(log_file, 'r') as f:
             async for line in f:
-                tmp = line.strip().split()
+                tmp = line.strip().strip(',').split()
                 for word in tmp:
                     if self._recipe_link_filter(word):
                         self.site_set.add(word)
@@ -181,8 +181,8 @@ class AllRecipesSiteMapDownloader(SiteMapDownloader):
     recipe_url_pattern = ['allrecipes.com/recipe/']
 
 
-class RecipeDepositorySiteMapDownloader(SiteMapDownloader):
-
-    subdirectory_output = 'recipedepository'
-    robots_url = 'http://www.therecipedepository.com/robots.txt'
-    recipe_url_pattern = ['www.therecipedepository.com/recipe']
+# class RecipeDepositorySiteMapDownloader(SiteMapDownloader):
+#
+#     subdirectory_output = 'recipedepository'
+#     robots_url = 'http://www.therecipedepository.com/robots.txt'
+#     recipe_url_pattern = ['www.therecipedepository.com/recipe']

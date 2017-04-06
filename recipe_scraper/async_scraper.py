@@ -3,7 +3,7 @@ import os
 import json
 from timeit import default_timer
 from asyncio import sleep as aio_sleep, ensure_future
-from aiohttp import ClientSession, TCPConnector, ClientResponseError, ClientOSError
+from aiohttp import ClientSession, TCPConnector, ClientResponseError, ClientOSError, ClientTimeoutError
 from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -24,6 +24,7 @@ EXECUTOR = ThreadPoolExecutor(max_workers=1)
 ###############################################
 #             Request behaviour               #
 DOMAIN_REQUEST_DELAY = 5  # time in seconds
+REQUEST_TIMEOUT = 60 * 30  # 30 minute request delay in case of internet lose (holy conestoga)
 
 
 # TODO refactor AsyncScraper to allow for a 'url' generator that will allow use of a SiteMapGenerator
@@ -68,6 +69,8 @@ class AsyncScraper:
                     self._generate_new_urls_from_id()
         except InvalidResponse:
             pass
+        except ClientTimeoutError:
+            return
         await aio_sleep(DOMAIN_REQUEST_DELAY - (start - default_timer()))  # delay call for a specific time period
         ensure_future(self.__anext__(), loop=self.loop)
 
@@ -77,11 +80,12 @@ class AsyncScraper:
         :return:
         """
         if not self._url_queue.empty():
+            url = None
             try:
                 url = self._url_queue.get()
                 conn = TCPConnector(verify_ssl=False)
                 async with ClientSession(connector=conn) as client:
-                    async with client.get(url) as response:
+                    async with client.get(url, timeout=REQUEST_TIMEOUT) as response:
                         if response.status == 200:
                             logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
                             self.consecutive_404_errors = 0
@@ -108,13 +112,11 @@ class AsyncScraper:
         soup = BeautifulSoup(response, 'lxml')
         data = self.parser(soup)
         data['url'] = url
-        # map(self.url_queue.put, self.find_links(soup, self.base_path))
         return json.dumps(data)
 
     def find_links(self, soup):
         """
         :param soup: BeautifulSoup parsed HTTP response
-        :param base_path: The base path that contains recipes (i.e. domain.com/recipes)
         :return: list of valid links to new recipes
         """
         links = [link for link in soup.find_all('a')
