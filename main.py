@@ -77,7 +77,7 @@ def set_scrapers_id_generator(scrapers, loop=None):
     return
 
 
-def main(loop, modify_scraper_start_id_flag=False, use_sitemaps_flag=False, verbose=True):
+def main(loop, modify_scraper_start_id_flag=False, use_sitemaps_flag=False, reverse_flag=False, verbose=True):
     """
     Wrapper method to launch co-routines that recursively call the next url to scrape.
     :param loop: the event loop
@@ -96,6 +96,9 @@ def main(loop, modify_scraper_start_id_flag=False, use_sitemaps_flag=False, verb
                 print("\t\t{0}: {1}".format(key, getattr(value, "current_id")))
     elif use_sitemaps_flag:
         print("Using sitemap for url generation")
+        if reverse_flag:
+            for scraper in SITEMAP_DOWNLOADERS:
+                scraper.reverse = True
         set_scrapers_id_generator(scrapers, loop=loop)
     print("Beginning scraping")
     for i, key_pair in enumerate(scrapers.items()):
@@ -111,10 +114,13 @@ if __name__ == '__main__':
                         help="Download site maps using the sitemap downloader")
     parser.add_argument('--use-sitemaps', action="store_true",
                         help="Use sitemaps directory to generate ids for scraping")
+    parser.add_argument('--reverse', action="store_true",
+                        help="Iterate backwards over sitemaps")
     args = parser.parse_args()
     modify_start_id = True if args.calc_start_id else False
     download_sitemaps = True if args.download_sitemaps else False
     use_sitemaps = True if args.use_sitemaps else False
+    reverse = True if args.reverse else False
     if download_sitemaps:
         main_event_loop = asyncio.get_event_loop()
         for sitemap_downloader in SITEMAP_DOWNLOADERS:
@@ -126,6 +132,7 @@ if __name__ == '__main__':
             main_event_loop,
             modify_scraper_start_id_flag=modify_start_id,
             use_sitemaps_flag=use_sitemaps,
+            reverse_flag=reverse,
             verbose=True
         )
     while True:

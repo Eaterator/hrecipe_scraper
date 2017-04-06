@@ -39,6 +39,7 @@ class SiteMapDownloader:
         except OSError:
             pass
         self.site_set = set()
+        self._reverse = False
 
     async def get_sitemaps(self):
         sitemaps = await self._find_sitemaps_from_robots(self.robots_url)
@@ -107,7 +108,8 @@ class SiteMapDownloader:
     @property
     def get_links(self):
         path = os.path.join(self.output_directory, self.subdirectory_output)
-        for _file in os.listdir(path):
+        files = os.listdir(path) if not self._reverse else os.listdir(path)[::-1]
+        for _file in files:
             print("\t Loading Sitemap File: {0}".format(_file))
             if os.path.isfile(os.path.join(path, _file)):
                 with gzip.open(os.path.join(path, _file), 'r') as f:
@@ -150,11 +152,20 @@ class SiteMapDownloader:
     def site_set_length(self):
         return len(self.site_set)
 
+    @property
+    def reverse(self):
+        return self._reverse
+
+    @reverse.setter
+    def reverse(self, val):
+        self._reverse = val
+
 
 class FoodSiteMapDownloader(SiteMapDownloader):
 
     subdirectory_output = 'food'
     robots_url = 'http://www.food.com/robots.txt'
+    ignore_recipe_pattern = ['/review']
     recipe_url_pattern = ['www.food.com/recipe/']
 
 
@@ -181,8 +192,8 @@ class AllRecipesSiteMapDownloader(SiteMapDownloader):
     recipe_url_pattern = ['allrecipes.com/recipe/']
 
 
-# class RecipeDepositorySiteMapDownloader(SiteMapDownloader):
-#
-#     subdirectory_output = 'recipedepository'
-#     robots_url = 'http://www.therecipedepository.com/robots.txt'
-#     recipe_url_pattern = ['www.therecipedepository.com/recipe']
+class RecipeDepositorySiteMapDownloader(SiteMapDownloader):
+
+    subdirectory_output = 'recipedepository'
+    robots_url = 'http://www.therecipedepository.com/robots.txt'
+    recipe_url_pattern = ['www.therecipedepository.com/recipe']
