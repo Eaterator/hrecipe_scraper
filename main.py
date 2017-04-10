@@ -73,7 +73,7 @@ def set_scrapers_id_generator(scrapers, loop=None):
         print("Finished inspecting log file for visited links")
     print("Visited links set information: ")
     for site, scraper in scrapers.items():
-        print('\t{0}: {1}'.format(site, scraper.loader_site_set_length))
+        print('\t{0}: {1}'.format(scraper.sitemap_loader.subdirectory_output, scraper.loader_site_set_length))
     return
 
 

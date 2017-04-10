@@ -66,10 +66,15 @@ class AsyncScraper:
                 if self.consecutive_404_errors > MAXIMUM_SEQUENTIAL_404_ERRORS:
                     return
                 else:
-                    self._generate_new_urls_from_id()
+                    try:
+                        self._generate_new_urls_from_id()
+                    except StopIteration:
+                        print("Exiting, no more links: {0}".format(self.url_id_format))
+                        return
         except InvalidResponse:
             pass
         except ClientTimeoutError:
+            print("TimeError, exiting: {0}".format(self.url_id_format))
             return
         await aio_sleep(DOMAIN_REQUEST_DELAY - (start - default_timer()))  # delay call for a specific time period
         ensure_future(self.__anext__(), loop=self.loop)

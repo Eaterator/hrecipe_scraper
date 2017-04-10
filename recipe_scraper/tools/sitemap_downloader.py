@@ -108,7 +108,7 @@ class SiteMapDownloader:
     @property
     def get_links(self):
         path = os.path.join(self.output_directory, self.subdirectory_output)
-        files = os.listdir(path) if not self._reverse else os.listdir(path)[::-1]
+        files = sorted(os.listdir(path)) if not self._reverse else sorted(os.listdir(path), reverse=True)
         for _file in files:
             print("\t Loading Sitemap File: {0}".format(_file))
             if os.path.isfile(os.path.join(path, _file)):
@@ -125,7 +125,7 @@ class SiteMapDownloader:
                     os.path.join(path, _file),
                     os.path.join(path, self.completed_dir, _file)
                 )
-        yield None
+        raise StopIteration()
 
     def _recipe_link_filter(self, link):
         if hasattr(self, 'ignore_recipe_pattern'):
