@@ -1,4 +1,5 @@
 import re
+import json
 from abc import ABCMeta, abstractmethod
 from itertools import chain
 
@@ -37,7 +38,7 @@ class HRecipeParser(Parser):
         :param soup: the raw html data
         :return: structures json of the parsed data in the data collection format
         """
-        return {
+        data = {
             'title': self._find_title(soup),
             'ingredients': self._find_ingredients(soup),
             'instructions': self._find_instructions(soup),
@@ -48,6 +49,7 @@ class HRecipeParser(Parser):
             'yield': self._find_yield(soup),
             'reviews': self._find_reviews(soup),
         }
+        return data
 
     def _find_title(self, soup):
         # TODO make more general for meta only tags if necessary
@@ -175,3 +177,74 @@ class HRecipeParser(Parser):
         return re.sub(HTML_TAG_PATTERN, '',
                       re.sub(WHITESPACE_PATTERN, '\n', text)
                       )
+
+
+class JsonLdParser(Parser):
+
+    _control_map = dict.fromkeys(range(32))
+
+    def parse(self, soup):
+        tags = self._find_script_tags(soup)
+        recipe_data = {}
+        for tag in tags:
+            try:
+                recipe_data = self._get_recipe_data(
+                    self._decode_input(tag)
+                )
+                break
+            except:
+                pass
+        if recipe_data.get('ingredients'):
+            return recipe_data
+        else:
+            return HRecipeParser.get_parser()(soup)
+
+    @staticmethod
+    def _find_script_tags(soup):
+        return soup.find_all('script', type='application/ld+json')
+
+    def _decode_input(self, tag):
+        try:
+            return json.loads(tag.text.translate(self._control_map))
+        except:
+            return
+
+    def _get_recipe_data(self, recipe_data):
+        return {
+            'title': recipe_data.get('name'),
+            'ingredients': self._get_data_from_list_or_string(recipe_data.get('recipeIngredient'), ','),
+            'instructions': self._get_data_from_list_or_string(recipe_data.get('recipeInstructions'), '.'),
+            'time': {
+                'prepTime': recipe_data.get('prepTime'),
+                'cookTime': recipe_data.get('cookTime'),
+            },
+            'yield': recipe_data.get('recipeYield'),
+            'reviews': {
+                'text': [],
+                'ratings': self._get_ratings_data(recipe_data.get('aggregateRating'))
+            },
+        }
+
+    @staticmethod
+    def _get_ratings_data(data):
+        if data:
+            return {
+                'average': data.get('rating'),
+                'count': data.get('reviewCount'),
+                'worst': None,
+                'best': None,
+                'ratings': []
+            }
+        return {
+            'average': None,
+            'count': None,
+            'worst': None,
+            'best': None,
+            'ratings': []
+        }
+
+    @staticmethod
+    def _get_data_from_list_or_string(data, delimiter):
+        return data if isinstance(data, list) else data.split(delimiter)
+
+

@@ -1,7 +1,7 @@
 import asyncio
 import sys
-from recipe_scraper.recipe_parsers import HRecipeParser
-from recipe_scraper.async_scraper import AsyncScraper
+from recipe_scraper.recipe_parsers import HRecipeParser, JsonLdParser
+from recipe_scraper.async_scraper import AsyncScraper, AsyncSraperSiteMap
 from recipe_scraper.tools.log_inspector import LogInspector
 from recipe_scraper.tools.data_loader import DataLoader
 from recipe_scraper.tools import SITEMAP_DOWNLOADERS, SiteMapDownloader
@@ -17,7 +17,7 @@ SCRAPER_CONFIGS = {
     },
     'foodnetwork': {
         'base_path': ['foodnetwork.com/recipes', '/recipes'],
-        'parser': HRecipeParser.get_parser(),
+        'parser': JsonLdParser.get_parser(),
         'url_id_format': 'http://www.foodnetwork.com/recipes/{0}',
         'start_id': 3,
     },
@@ -34,16 +34,20 @@ SCRAPER_CONFIGS = {
         'url_id_format': 'http://www.therecipedepository.com/recipe/{0}',
         'start_id': 4,
     },
-    'food':{
-        'base_path': ["www.food.com/recipes"],
-        'parser': HRecipeParser.get_parser(),
-        'url_id_format': 'http://www.food.com/recipes/{0}',
-        'start_id': None
-    }
+    # 'food': {
+    #     'base_path': ["www.food.com/recipes"],
+    #     'parser': JsonLdParser,
+    #     'url_id_format': 'http://www.food.com/recipes/{0}',
+    #     'start_id': None
+    # },
+    # 'bbcgoodfood': {
+    #     'base_path': ['www.bbcgoodfood.com/recipes/']
+    # }
 }
 
 
 def init_scrapers(loop):
+    """ To start scrapers for the ID method"""
     scrapers = {}
     del SCRAPER_CONFIGS['food']
     for site, config in SCRAPER_CONFIGS.items():
@@ -52,6 +56,7 @@ def init_scrapers(loop):
 
 
 def modify_scrapers(scrapers):
+    """Calculate maximum is for the ID string formatting method"""
     for text in DataLoader.iter_log_text():
         max_ids = LogInspector.find_largest_ids(text)
         for site in max_ids:
@@ -61,9 +66,33 @@ def modify_scrapers(scrapers):
         scrapers[site].reset_url_queue()
 
 
-def set_scrapers_id_generator(scrapers, loop=None):
-    for site, loader in zip(scrapers, SITEMAP_DOWNLOADERS):
-        asyncio.ensure_future(scrapers[site].set_sitemap_link_loaders(loader))
+# def set_scrapers_id_generator(scrapers, loop=None):
+#     """
+#     Sets the SiteMapDownloader class as the url generator.
+#     Uses the SiteMapDownloader class' parser for the scrapers parser.
+#     """
+#     for site, loader in zip(scrapers, SITEMAP_DOWNLOADERS):
+#         asyncio.ensure_future(scrapers[site].set_sitemap_link_loader(loader))
+#     while True:
+#         print("Retrieving links from log file to build visited set and building link generators")
+#         tasks = asyncio.Task.all_tasks(main_event_loop)
+#         loop.run_until_complete(asyncio.gather(*tasks))
+#         if sum([task.done() for task in tasks]) >= len(tasks):
+#             break
+#         print("Finished inspecting log file for visited links")
+#     print("Visited links set information: ")
+#     for site, scraper in scrapers.items():
+#         print('\t{0}: {1}'.format(scraper.sitemap_loader.subdirectory_output, scraper.loader_site_set_length))
+#     return
+
+
+def generate_scrapers_from_sitemaps_loaders(loop=None, reverse=False):
+    scrapers = {}
+    for sitemap in SITEMAP_DOWNLOADERS:
+        sitemap.reverse = reverse
+        scrapers[sitemap.subdirectory_output] = AsyncSraperSiteMap(loop=loop)
+        scrapers[sitemap.subdirectory_output].set_sitemap_link_loader(sitemap)
+    asyncio.ensure_future(scrapers[sitemap.subdirectory_output].load_sites_visited_from_log_file())
     while True:
         print("Retrieving links from log file to build visited set and building link generators")
         tasks = asyncio.Task.all_tasks(main_event_loop)
@@ -74,7 +103,7 @@ def set_scrapers_id_generator(scrapers, loop=None):
     print("Visited links set information: ")
     for site, scraper in scrapers.items():
         print('\t{0}: {1}'.format(scraper.sitemap_loader.subdirectory_output, scraper.loader_site_set_length))
-    return
+    return scrapers
 
 
 def main(loop, modify_scraper_start_id_flag=False, use_sitemaps_flag=False, reverse_flag=False, verbose=True):
@@ -86,8 +115,8 @@ def main(loop, modify_scraper_start_id_flag=False, use_sitemaps_flag=False, reve
     :param: verbose: outputs information to the command line
     :return:
     """
-    scrapers = init_scrapers(loop)
     if modify_scraper_start_id_flag:
+        scrapers = init_scrapers(loop)
         print("Using ID url parsing")
         modify_scrapers(scrapers)
         if verbose:
@@ -96,10 +125,7 @@ def main(loop, modify_scraper_start_id_flag=False, use_sitemaps_flag=False, reve
                 print("\t\t{0}: {1}".format(key, getattr(value, "current_id")))
     elif use_sitemaps_flag:
         print("Using sitemap for url generation")
-        if reverse_flag:
-            for scraper in SITEMAP_DOWNLOADERS:
-                scraper.reverse = True
-        set_scrapers_id_generator(scrapers, loop=loop)
+        scrapers = generate_scrapers_from_sitemaps_loaders(loop, reverse=reverse_flag)
     print("Beginning scraping")
     for i, key_pair in enumerate(scrapers.items()):
         asyncio.ensure_future(key_pair[1].__anext__(), loop=loop)

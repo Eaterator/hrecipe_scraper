@@ -8,6 +8,7 @@ from queue import Queue
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from bs4 import BeautifulSoup
+from recipe_scraper.tools import get_agent
 from .recipe_parsers import HRecipeParser
 from .exceptions import InvalidResponse, AsyncScraperConfigError, FileNumberException
 
@@ -23,7 +24,7 @@ EXECUTOR = ThreadPoolExecutor(max_workers=1)
 
 ###############################################
 #             Request behaviour               #
-DOMAIN_REQUEST_DELAY = 5  # time in seconds
+DOMAIN_REQUEST_DELAY = 3.0  # time in seconds
 REQUEST_TIMEOUT = 60 * 30  # 30 minute request delay in case of internet lose (holy conestoga)
 
 
@@ -35,6 +36,7 @@ class AsyncScraper:
     to have a single class for domain that can be used to generate asynchronous tasks to be
     run in the main event loop.
     """
+
     def __init__(self, parser=HRecipeParser.get_parser(), base_path=None, loop=None, start_id=None, url_id_format=None):
         self.consecutive_404_errors = 0
         self.current_id = start_id
@@ -61,7 +63,9 @@ class AsyncScraper:
             resp, url = await self.make_request()
             if resp:
                 data = self.parse_content(resp, url)
-                await self._write_content(data)
+                if data['url'] and data['ingredients']:
+                    print("{0}\t|\t{1}".format(data['url'], json.dumps(data)))
+                    await self._write_content(json.dumps(data))
             else:
                 if self.consecutive_404_errors > MAXIMUM_SEQUENTIAL_404_ERRORS:
                     return
@@ -90,7 +94,8 @@ class AsyncScraper:
                 url = self._url_queue.get()
                 conn = TCPConnector(verify_ssl=False)
                 async with ClientSession(connector=conn) as client:
-                    async with client.get(url, timeout=REQUEST_TIMEOUT) as response:
+                    header = {"User:Agent": get_agent()}
+                    async with client.get(url, timeout=REQUEST_TIMEOUT, headers=header) as response:
                         if response.status == 200:
                             logger.info('successful response: id: {0}, final: {1}'.format(url, response.url))
                             self.consecutive_404_errors = 0
@@ -117,7 +122,7 @@ class AsyncScraper:
         soup = BeautifulSoup(response, 'lxml')
         data = self.parser(soup)
         data['url'] = url
-        return json.dumps(data)
+        return data
 
     def find_links(self, soup):
         """
@@ -170,15 +175,16 @@ class AsyncScraper:
         self._url_queue = Queue()
         self._generate_new_urls_from_id()
 
-    async def set_sitemap_link_loaders(self, loader):
-        self.sitemap_loader = loader
-        await self._load_sites_visited_from_log_file()
-        self.sitemap_link_generator = loader.get_links
-        self.reset_url_queue()
+    def set_sitemap_link_loader(self, loader):
+        if loader:
+            self.sitemap_loader = loader
+            self.sitemap_link_generator = loader.get_links
+            self.parser = self.sitemap_loader.parser
 
-    async def _load_sites_visited_from_log_file(self):
+    async def load_sites_visited_from_log_file(self):
         if self.sitemap_loader:
             await self.sitemap_loader.create_links_set_from_log()
+            self.reset_url_queue()
         return
 
     @property
@@ -262,3 +268,14 @@ def write_data_to_file(data, file_name):
         f.write(',')  # Use a comma separator between JSON dicts in a list format
         f.write(data)
     return
+
+
+class AsyncSraperSiteMap(AsyncScraper):
+
+    def __init__(self, loop=None):
+        self.consecutive_404_errors = 0
+        self._url_queue = Queue()
+        self.data_file_manager = DataFileManager()
+        self.loop = loop
+        self.sitemap_loader = None
+        self.sitemap_link_generator = None
